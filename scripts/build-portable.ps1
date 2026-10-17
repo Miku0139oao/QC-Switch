@@ -15,7 +15,10 @@ try {
     $versionMatch = [regex]::Match((Get-Content desktop/pubspec.yaml -Raw), '(?m)^version:\s*([^+\s]+)')
     if (-not $versionMatch.Success) { throw 'Missing application version' }
     $version = $versionMatch.Groups[1].Value
-    Invoke-Checked go @('mod', 'download')
+    # License collection below enumerates the complete module graph, including
+    # modules used only by dependency tests. A fresh CI cache must contain their
+    # source directories as well as their go.mod files.
+    Invoke-Checked go @('mod', 'download', 'all')
     Push-Location desktop
     try { Invoke-Checked $Flutter @('pub', 'get', '--enforce-lockfile') } finally { Pop-Location }
     if (-not $SkipChecks) {
@@ -58,6 +61,9 @@ try {
     $licenseDir = Join-Path $stageDir 'licenses'
     New-Item -ItemType Directory $licenseDir -Force | Out-Null
     function Copy-Notices([string]$Source, [string]$Name) {
+        if (-not $Source -or -not (Test-Path -LiteralPath $Source -PathType Container)) {
+            throw "Dependency source directory missing for $Name"
+        }
         $target = Join-Path $licenseDir $Name
         New-Item -ItemType Directory $target -Force | Out-Null
         Get-ChildItem -LiteralPath $Source -File | Where-Object Name -Match '^(LICENSE|LICENCE|COPYING|NOTICE|PATENTS|AUTHORS)(\..*)?$' |
