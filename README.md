@@ -6,14 +6,14 @@ Windows x64 的 QuickRouter 控制工具。Flutter 原生 Material 3、繁體中
 
 ![QC Switch 總覽](docs/images/overview.png)
 
-> 0.1.0 為預覽版。目前完成模擬上游與實際 Codex CLI 的隔離驗證；尚未使用真實 QuickRouter Key 驗收。各客戶端的驗證範圍見 [驗證紀錄](docs/VALIDATION.md)。
+> 0.1.1 為預覽版。目前完成模擬上游與實際 Codex CLI 的隔離驗證；尚未使用真實 QuickRouter Key 驗收。各客戶端的驗證範圍見 [驗證紀錄](docs/VALIDATION.md)。
 
 ## 下載與使用
 
 從 [GitHub Releases](https://github.com/Miku0139oao/QC-Switch/releases) 下載 portable ZIP；每次 main 分支建置也會在 [Actions](https://github.com/Miku0139oao/QC-Switch/actions/workflows/windows.yml) 提供 30 天的建置產物。
 
 1. 完整解壓 ZIP 至可寫入的資料夾，執行 `QC Switch.exe`。保留旁邊的核心、DLL 與 `data` 目錄。
-2. 在「連線設定」新增 QuickRouter Key，選擇 `.us`、`.ai` 或自訂 HTTPS 根地址／`/v1`。
+2. 在「連線設定」新增 QuickRouter Key，選擇 `https://api.quickrouter.ai`（預設）、`https://api.quickrouter.us` 或自訂 HTTPS 根地址／`/v1`。既有連線若誤填網站網域，按「改用 API 位址」即可保留 Key 與模型並修正。
 3. 選擇上游協議，取得或手動輸入模型，設定工具、圖片、推理與上下文能力。清單中出現模型不代表 Key 有使用權限。
 4. 按「測試連線」分別測試認證、文字、串流、工具。這些測試會發出 API 請求，文字／串流／工具測試可能產生費用。
 5. 在 Claude Code 或 Codex 頁選擇連線、模型與模式，再按啟用。重新啟動相應 CLI、VS Code 擴充套件或 Codex 桌面程式。
@@ -79,7 +79,7 @@ flutter run -d windows
 ./scripts/build-portable.ps1 -Flutter D:/DevTools/flutter/bin/flutter.bat
 ```
 
-產物：`dist/QC-Switch-0.1.0-windows-x64-portable.zip` 與 `.sha256`。ZIP 包含 Go 核心、Flutter runtime、app-local VC++ runtime 及第三方授權。CI 執行相同腳本；推送 `v*` tag 會建立預覽版 release。
+產物：`dist/QC-Switch-0.1.1-windows-x64-portable.zip` 與 `.sha256`。ZIP 包含 Go 核心、Flutter runtime、app-local VC++ runtime 及第三方授權。CI 執行相同腳本；推送 `v*` tag 會建立預覽版 release。
 
 可選的實際 Codex CLI／模擬上游驗證（不需要真實 Key）：
 

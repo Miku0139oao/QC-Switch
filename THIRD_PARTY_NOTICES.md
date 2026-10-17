@@ -7,6 +7,14 @@ runtime notices also reside at `data/flutter_assets/NOTICES.Z` and are accessibl
 through the application's license page. Microsoft Visual C++ runtime DLLs are
 redistributed under Microsoft's Visual Studio license, not this project's MIT license.
 
+## Brand artwork
+
+OpenAI and Anthropic SVG brand icons are from Simple Icons 14.15.0,
+distributed under CC0-1.0: https://github.com/simple-icons/simple-icons/tree/14.15.0.
+Original assets: `icons/openai.svg`, `icons/anthropic.svg`.
+Brand names and trademarks belong to their respective owners. QC Switch is an
+independent tool and is not affiliated with or endorsed by OpenAI or Anthropic.
+
 ## cc-switch reference
 
 The configuration takeover, protocol bridge, and streaming design reference

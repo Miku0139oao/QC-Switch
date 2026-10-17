@@ -80,3 +80,26 @@ func TestNoListenerUntilRouteAndBackupWithoutSecrets(t *testing.T) {
 		t.Fatal("auth changed")
 	}
 }
+
+func TestCorrectAPIEndpointKeepsStoredKeyAndModels(t *testing.T) {
+	a, err := New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	profile := domain.Profile{ID: "endpoint-fix", Name: "existing", Endpoint: "https://quickrouter.ai", Protocol: domain.Responses, Key: "isolated-test-key", Models: []domain.Model{{ID: "chosen-model", Tools: true}}}
+	call(t, a, "profiles.save", profile)
+	profile.Endpoint = "https://api.quickrouter.ai/v1/"
+	profile.Key = "" // UI edits and the one-click correction omit the saved key.
+	state := call(t, a, "profiles.save", profile).(domain.State)
+	if len(state.Profiles) != 1 || state.Profiles[0].Endpoint != "https://api.quickrouter.ai" || !state.Profiles[0].HasKey || len(state.Profiles[0].Models) != 1 {
+		t.Fatalf("endpoint correction lost existing settings: %#v", state.Profiles)
+	}
+	stored, err := a.Store.Profile(profile.ID)
+	if err != nil || stored.Key != "isolated-test-key" || stored.Models[0].ID != "chosen-model" {
+		t.Fatal("endpoint edit lost encrypted credential or model", err)
+	}
+	if running, _, _ := a.Gateway.Status(); running {
+		t.Fatal("endpoint edit started a listener")
+	}
+}

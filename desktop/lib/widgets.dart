@@ -16,25 +16,33 @@ class SectionCard extends StatelessWidget {
 }
 
 class PageHeading extends StatelessWidget {
-  const PageHeading(this.title, this.subtitle, {super.key, this.action});
+  const PageHeading(
+    this.title,
+    this.subtitle, {
+    super.key,
+    this.action,
+    this.leading,
+  });
   final String title, subtitle;
   final Widget? action;
+  final Widget? leading;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 28),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (leading != null) ...[leading!, const SizedBox(width: 18)],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.headlineMedium
+                style: Theme.of(context).textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 subtitle,
                 style: TextStyle(

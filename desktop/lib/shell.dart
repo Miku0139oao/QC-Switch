@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'clients.dart';
+import 'brand.dart';
 import 'core.dart';
 import 'pages.dart';
 import 'profiles.dart';
@@ -239,11 +240,13 @@ class _AppShellState extends ConsumerState<AppShell>
         label: Text('連線設定'),
       ),
       NavigationRailDestination(
-        icon: Icon(Icons.terminal_outlined),
-        selectedIcon: Icon(Icons.terminal),
+        icon: ClientLogo('claude'),
         label: Text('Claude Code'),
       ),
-      NavigationRailDestination(icon: Icon(Icons.code), label: Text('Codex')),
+      NavigationRailDestination(
+        icon: ClientLogo('codex'),
+        label: Text('Codex'),
+      ),
       NavigationRailDestination(
         icon: Icon(Icons.receipt_long_outlined),
         selectedIcon: Icon(Icons.receipt_long),
@@ -259,13 +262,13 @@ class _AppShellState extends ConsumerState<AppShell>
       body: Row(
         children: [
           Container(
-            width: 220,
+            width: 212,
             color: c.surfaceContainerLow,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 32, 16, 28),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 16, 28),
                   child: Row(
                     children: [
                       Container(
@@ -288,7 +291,7 @@ class _AppShellState extends ConsumerState<AppShell>
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 18,
                             color: c.onSurface,
                             fontWeight: FontWeight.w700,
                           ),
@@ -300,7 +303,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 Expanded(
                   child: NavigationRail(
                     extended: true,
-                    minExtendedWidth: 220,
+                    minExtendedWidth: 212,
                     backgroundColor: Colors.transparent,
                     selectedIndex: page,
                     destinations: destinations,
@@ -312,7 +315,13 @@ class _AppShellState extends ConsumerState<AppShell>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const StatusPill('Windows · Portable'),
+                      Text(
+                        'Windows · Portable',
+                        style: TextStyle(
+                          color: c.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'QuickRouter 控制中心',
@@ -331,7 +340,7 @@ class _AppShellState extends ConsumerState<AppShell>
             child: Column(
               children: [
                 Container(
-                  height: 72,
+                  height: 60,
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Row(
                     children: [
@@ -349,7 +358,7 @@ class _AppShellState extends ConsumerState<AppShell>
                         onPressed: () async {
                           try {
                             await launchUrl(
-                              Uri.parse('https://quickrouter.us/balance'),
+                              Uri.parse('https://api.quickrouter.ai/console'),
                               mode: LaunchMode.externalApplication,
                             );
                           } catch (_) {
@@ -394,21 +403,27 @@ class _AppShellState extends ConsumerState<AppShell>
                     data: (state) => SingleChildScrollView(
                       key: ValueKey(page),
                       padding: const EdgeInsets.fromLTRB(32, 20, 32, 40),
-                      child: switch (page) {
-                        0 => OverviewPage(
-                          state: state,
-                          navigate: (v) => setState(() => page = v),
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1120),
+                          child: switch (page) {
+                            0 => OverviewPage(
+                              state: state,
+                              navigate: (v) => setState(() => page = v),
+                            ),
+                            1 => ProfilesPage(state: state),
+                            2 || 3 => ClientPage(
+                              key: ValueKey(page),
+                              client: page == 2 ? 'claude' : 'codex',
+                              state: state,
+                              onConnections: () => setState(() => page = 1),
+                            ),
+                            4 => UsagePage(state: state),
+                            _ => SettingsPage(state: state),
+                          },
                         ),
-                        1 => ProfilesPage(state: state),
-                        2 || 3 => ClientPage(
-                          key: ValueKey(page),
-                          client: page == 2 ? 'claude' : 'codex',
-                          state: state,
-                          onConnections: () => setState(() => page = 1),
-                        ),
-                        4 => UsagePage(state: state),
-                        _ => SettingsPage(state: state),
-                      },
+                      ),
                     ),
                   ),
                 ),

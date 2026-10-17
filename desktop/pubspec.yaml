@@ -1,7 +1,7 @@
 name: qc_switch
 description: QuickRouter portable control center for Windows.
 publish_to: none
-version: 0.1.0+1
+version: 0.1.1+2
 
 environment:
   sdk: ^3.13.5
@@ -16,6 +16,7 @@ dependencies:
   tray_manager: 0.5.2
   file_selector: ^1.1.0
   url_launcher: ^6.3.3
+  flutter_svg: ^2.2.4
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +27,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/tray.ico
+    - assets/openai.svg
+    - assets/anthropic.svg

@@ -10,6 +10,50 @@ String protocolName(dynamic value) => switch (value) {
   _ => 'Chat Completions',
 };
 
+String? quickRouterApiSuggestion(dynamic endpoint) {
+  final uri = Uri.tryParse('$endpoint');
+  return switch (uri?.host.toLowerCase()) {
+    'quickrouter.ai' => 'https://api.quickrouter.ai',
+    'quickrouter.us' => 'https://api.quickrouter.us',
+    _ => null,
+  };
+}
+
+class EndpointHint extends StatelessWidget {
+  const EndpointHint({super.key, required this.endpoint, required this.onFix});
+  final String endpoint;
+  final VoidCallback onFix;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Notice('目前填入的是網站位址。API 端點應為 $endpoint。', icon: Icons.link_off),
+      TextButton.icon(
+        onPressed: onFix,
+        icon: const Icon(Icons.auto_fix_high, size: 18),
+        label: const Text('改用 API 位址'),
+      ),
+    ],
+  );
+}
+
+Future<void> fetchProfileModels(
+  BuildContext context,
+  WidgetRef ref,
+  Json profile,
+) async {
+  final result = await command(context, ref, 'models.fetch', {
+    'id': profile['id'],
+  });
+  if (result != null && context.mounted) {
+    await showDialog<void>(
+      context: context,
+      builder: (_) =>
+          DiscoverModelsDialog(profile: profile, models: objects(result)),
+    );
+  }
+}
+
 class ProfilesPage extends ConsumerWidget {
   const ProfilesPage({super.key, required this.state});
   final Json state;
@@ -106,6 +150,15 @@ class ProfilesPage extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 20),
+                  if (quickRouterApiSuggestion(p['endpoint'])
+                      case final String api)
+                    EndpointHint(
+                      endpoint: api,
+                      onFix: () => command(context, ref, 'profiles.save', {
+                        ...p,
+                        'endpoint': api,
+                      }),
+                    ),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -138,23 +191,7 @@ class ProfilesPage extends ConsumerWidget {
                         icon: Icons.cloud_download_outlined,
                         onPressed: p['hasKey'] != true
                             ? null
-                            : () async {
-                                final result = await command(
-                                  context,
-                                  ref,
-                                  'models.fetch',
-                                  {'id': p['id']},
-                                );
-                                if (result != null && context.mounted) {
-                                  await showDialog<void>(
-                                    context: context,
-                                    builder: (_) => DiscoverModelsDialog(
-                                      profile: p,
-                                      models: objects(result),
-                                    ),
-                                  );
-                                }
-                              },
+                            : () => fetchProfileModels(context, ref, p),
                       ),
                       OutlinedButton.icon(
                         onPressed:
@@ -189,7 +226,7 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
   final form = GlobalKey<FormState>();
   late final name = TextEditingController(text: widget.profile?['name']);
   late final endpoint = TextEditingController(
-    text: widget.profile?['endpoint'] ?? 'https://quickrouter.us',
+    text: widget.profile?['endpoint'] ?? 'https://api.quickrouter.ai',
   );
   final keyField = TextEditingController();
   late String protocol = widget.profile?['protocol'] ?? 'responses';
@@ -245,9 +282,9 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                 children: [
                   for (final node in ['us', 'ai'])
                     ActionChip(
-                      label: Text('quickrouter.$node'),
+                      label: Text('api.quickrouter.$node'),
                       onPressed: () => setState(
-                        () => endpoint.text = 'https://quickrouter.$node',
+                        () => endpoint.text = 'https://api.quickrouter.$node',
                       ),
                     ),
                 ],
@@ -259,10 +296,16 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                   labelText: '節點或自訂端點',
                   helperText: '接受根地址或 /v1；不會自動切換節點',
                 ),
+                onChanged: (_) => setState(() {}),
                 validator: (v) => Uri.tryParse(v!.trim())?.hasAuthority == true
                     ? null
                     : '請輸入完整網址',
               ),
+              if (quickRouterApiSuggestion(endpoint.text) case final String api)
+                EndpointHint(
+                  endpoint: api,
+                  onFix: () => setState(() => endpoint.text = api),
+                ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 initialValue: protocol,

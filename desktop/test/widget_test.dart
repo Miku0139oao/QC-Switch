@@ -15,7 +15,7 @@ Json fixture() => object(
   "version":"0.1.0", "contract":1, "running":false, "active":0,
   "address":"", "records":[], "recovery":[], "dataDirectory":"X:/portable/user-data",
   "settings":{"port":15722,"theme":"system","retentionDays":30},
-  "profiles":[{"id":"main","name":"測試連線","endpoint":"https://quickrouter.us",
+  "profiles":[{"id":"main","name":"測試連線","endpoint":"https://api.quickrouter.ai",
     "protocol":"responses","hasKey":true,"models":[{"id":"test-model","name":"測試模型",
     "tools":true,"vision":true,"reasoning":false,"context":32000}]}],
   "clients":[
@@ -39,8 +39,18 @@ class FakeCore implements RpcClient {
       return {'kind': params!['kind'], 'ok': true, 'message': '收到預期回應'};
     }
     if (method == 'profiles.save') {
+      final profiles = objects(state['profiles']);
+      final existing = profiles
+          .where((p) => p['id'] == params!['id'])
+          .firstOrNull;
       state['profiles'] = [
-        {...params!, 'hasKey': true}..remove('key'),
+        for (final p in profiles)
+          if (p['id'] != params!['id']) p,
+        {
+          ...params!,
+          'hasKey':
+              params['key']?.isNotEmpty == true || existing?['hasKey'] == true,
+        }..remove('key'),
       ];
     }
     if (method == 'clients.apply') {
@@ -59,12 +69,14 @@ class FakeCore implements RpcClient {
 Future<FakeCore> launch(
   WidgetTester tester, {
   Size size = const Size(1240, 820),
+  Json? initialState,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   final core = FakeCore();
+  if (initialState != null) core.state = initialState;
   addTearDown(core.events.close);
   await tester.pumpWidget(
     ProviderScope(
@@ -77,6 +89,177 @@ Future<FakeCore> launch(
 }
 
 void main() {
+  Future<void> openCodex(WidgetTester tester) async {
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationRail),
+        matching: find.text('Codex'),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  FilledButton applyButton(WidgetTester tester, String label) =>
+      tester.widget<FilledButton>(find.widgetWithText(FilledButton, label));
+
+  testWidgets(
+    'new profiles use the API host and website correction preserves stored credentials',
+    (tester) async {
+      final data = fixture();
+      data['profiles'][0]['endpoint'] = 'https://quickrouter.ai/v1/';
+      final core = await launch(tester, initialState: data);
+      await openCodex(tester);
+      expect(find.text('改用 API 位址'), findsOneWidget);
+      expect(applyButton(tester, '套用直連設定').onPressed, isNull);
+      await tester.tap(find.text('改用 API 位址'));
+      await tester.pumpAndSettle();
+      final saved = core.calls.singleWhere((c) => c.$1 == 'profiles.save').$2!;
+      expect(saved['endpoint'], 'https://api.quickrouter.ai');
+      expect(saved.containsKey('key'), isFalse);
+      expect(saved['models'], isNotEmpty);
+      expect(applyButton(tester, '套用直連設定').onPressed, isNotNull);
+      expect(
+        core.calls.where(
+          (c) =>
+              c.$1 == 'models.fetch' ||
+              c.$1 == 'connection.test' ||
+              c.$1 == 'clients.apply',
+        ),
+        isEmpty,
+      );
+      await tester.tap(find.text('連線設定'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, '新增連線').first);
+      await tester.pumpAndSettle();
+      final endpoint = tester.widget<TextFormField>(
+        find.byType(TextFormField).at(1),
+      );
+      expect(endpoint.controller!.text, 'https://api.quickrouter.ai');
+      expect(
+        quickRouterApiSuggestion('https://quickrouter.us'),
+        'https://api.quickrouter.us',
+      );
+      expect(quickRouterApiSuggestion('https://custom.example/v1'), isNull);
+    },
+  );
+
+  testWidgets(
+    'three saved profiles without binding can select and enable a compatible route',
+    (tester) async {
+      final data = fixture();
+      final main = objects(data['profiles']).single;
+      data['profiles'] = [
+        main,
+        {...main, 'id': 'chat', 'name': 'Chat 連線', 'protocol': 'chat'},
+        {
+          ...main,
+          'id': 'messages',
+          'name': 'Messages 連線',
+          'protocol': 'messages',
+        },
+      ];
+      data['clients'][1].remove('binding');
+      final core = await launch(tester, initialState: data);
+      await openCodex(tester);
+      expect(find.text('請先選擇一組 QuickRouter 連線。'), findsOneWidget);
+      expect(applyButton(tester, '套用直連設定').onPressed, isNull);
+      await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chat 連線 · Chat Completions').last);
+      await tester.pumpAndSettle();
+      expect(applyButton(tester, '啟用本地路由').onPressed, isNotNull);
+      // Status events do not discard the user's pending selection.
+      core.events.add(null);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('啟用本地路由'));
+      await tester.tap(find.text('啟用本地路由'));
+      await tester.pumpAndSettle();
+      final binding = core.calls
+          .singleWhere((c) => c.$1 == 'clients.apply')
+          .$2!;
+      expect(binding['profileId'], 'chat');
+      expect(binding['mode'], 'route');
+      expect(binding['model'], 'test-model');
+      expect(
+        core.calls.where(
+          (c) => c.$1 == 'connection.test' || c.$1.startsWith('gateway.'),
+        ),
+        isEmpty,
+      );
+    },
+  );
+
+  testWidgets(
+    'missing models can be added from the client page without a probe',
+    (tester) async {
+      final data = fixture();
+      data['profiles'][0]['models'] = [];
+      final core = await launch(tester, initialState: data);
+      await openCodex(tester);
+      expect(find.textContaining('此連線尚未加入模型'), findsOneWidget);
+      expect(applyButton(tester, '套用直連設定').onPressed, isNull);
+      await tester.tap(find.text('手動新增模型'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, 'chosen-model');
+      await tester.tap(find.text('保存模型'));
+      await tester.pumpAndSettle();
+      expect(applyButton(tester, '套用直連設定').onPressed, isNotNull);
+      expect(
+        core.calls
+            .singleWhere((c) => c.$1 == 'profiles.save')
+            .$2!['models'][0]['id'],
+        'chosen-model',
+      );
+      expect(
+        core.calls.where(
+          (c) =>
+              c.$1 == 'models.fetch' ||
+              c.$1 == 'connection.test' ||
+              c.$1 == 'clients.apply',
+        ),
+        isEmpty,
+      );
+      core.state['profiles'][0]['hasKey'] = false;
+      core.events.add(null);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('尚未保存 API Key'), findsOneWidget);
+      expect(applyButton(tester, '套用直連設定').onPressed, isNull);
+    },
+  );
+
+  testWidgets(
+    'external binding and model changes reconcile the open client form',
+    (tester) async {
+      final core = await launch(tester);
+      await openCodex(tester);
+      core.state['profiles'][0]['models'].add({
+        'id': 'other-model',
+        'tools': true,
+      });
+      core.state['clients'][1]['binding']['model'] = 'other-model';
+      core.events.add(null);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<DropdownButtonFormField<String>>(
+              find.byType(DropdownButtonFormField<String>).at(1),
+            )
+            .initialValue,
+        'other-model',
+      );
+      core.state['profiles'][0]['models'].removeLast();
+      core.events.add(null);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(find.text('請選擇預設模型，即可啟用客戶端。'), findsOneWidget);
+      expect(applyButton(tester, '套用直連設定').onPressed, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final size in [const Size(1240, 820), const Size(960, 640)]) {
     testWidgets('all pages fit $size without starting routing or probes', (
       tester,

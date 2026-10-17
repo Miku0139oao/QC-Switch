@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core.dart';
+import 'brand.dart';
 import 'widgets.dart';
 
 class OverviewPage extends StatelessWidget {
@@ -25,25 +26,26 @@ class OverviewPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PageHeading('總覽', '讓開發工具連上你的 QuickRouter，設定與流量盡在掌握。'),
+        const PageHeading('總覽', '你的開發工具、連線與路由狀態。'),
         Container(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: c.primaryContainer,
-            borderRadius: BorderRadius.circular(24),
+            color: c.surfaceContainerLow,
+            border: Border.all(color: c.outlineVariant),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: c.primary.withValues(alpha: .1),
-                  shape: BoxShape.circle,
+                  color: c.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   running ? Icons.route : Icons.power_settings_new,
-                  size: 32,
-                  color: c.onPrimaryContainer,
+                  size: 24,
+                  color: running ? c.primary : c.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 24),
@@ -52,20 +54,20 @@ class OverviewPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      running ? '本地路由運作中' : '準備好，再啟用路由',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: c.onPrimaryContainer,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      running ? '本地路由運作中' : '本地路由待命',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: c.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                     Text(
                       running
                           ? '${state['address']} · 新請求使用目前連線設定'
-                          : '管理設定不占用埠號。啟用本地路由時才開始監聽。',
+                          : '啟用客戶端的本地路由時才監聽；日常管理不占用埠號。',
                       style: TextStyle(
-                        color: c.onPrimaryContainer,
+                        fontSize: 13,
+                        color: c.onSurfaceVariant,
                         height: 1.6,
                       ),
                     ),
@@ -94,56 +96,31 @@ class OverviewPage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 28),
-        Text('客戶端', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          '開發工具',
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 16),
-        for (final client in clients)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: SectionCard(
-              padding: 20,
-              child: Row(
-                children: [
-                  Icon(
-                    client['client'] == 'claude' ? Icons.terminal : Icons.code,
-                    size: 28,
-                    color: c.primary,
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          client['client'] == 'claude'
-                              ? 'Claude Code'
-                              : 'Codex',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          client['managed'] == true
-                              ? '${object(client['binding'])['model']} · ${object(client['binding'])['mode'] == 'route' ? '本地路由' : '直連'}'
-                              : '尚未啟用 · 選擇連線與模型',
-                          style: TextStyle(color: c.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-                  StatusPill(
-                    client['managed'] == true ? '已接管' : '未接管',
-                    active: client['managed'] == true,
-                  ),
-                  const SizedBox(width: 12),
-                  IconButton(
-                    tooltip: '管理客戶端',
-                    onPressed: () =>
+        LayoutBuilder(
+          builder: (context, constraints) => Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              for (final client in clients)
+                SizedBox(
+                  width: constraints.maxWidth >= 760
+                      ? (constraints.maxWidth - 16) / 2
+                      : constraints.maxWidth,
+                  child: _ClientSummary(
+                    client: client,
+                    onOpen: () =>
                         navigate(client['client'] == 'claude' ? 2 : 3),
-                    icon: const Icon(Icons.arrow_forward),
                   ),
-                ],
-              ),
-            ),
+                ),
+            ],
           ),
+        ),
         const SizedBox(height: 20),
         if (profiles.isEmpty)
           SectionCard(
@@ -204,22 +181,29 @@ class _Metric extends StatelessWidget {
   final IconData icon;
   @override
   Widget build(BuildContext context) => SectionCard(
+    padding: 20,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+            Icon(
+              icon,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 10),
-            Text(
-              label,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
         Text(
           value,
           style: Theme.of(context).textTheme.headlineMedium
@@ -228,6 +212,65 @@ class _Metric extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _ClientSummary extends StatelessWidget {
+  const _ClientSummary({required this.client, required this.onOpen});
+  final Json client;
+  final VoidCallback onOpen;
+  @override
+  Widget build(BuildContext context) {
+    final managed = client['managed'] == true;
+    final binding = object(client['binding']);
+    final colors = Theme.of(context).colorScheme;
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ClientLogo('${client['client']}', size: 30, tile: true),
+              const Spacer(),
+              StatusPill(managed ? '已啟用' : '尚未啟用', active: managed),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Text(
+            client['client'] == 'claude' ? 'Claude Code' : 'Codex',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            managed
+                ? '${binding['model']} · ${binding['mode'] == 'route' ? '本地路由' : '直連'}'
+                : '選擇連線與模型，開始使用 QuickRouter。',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 13,
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Text(
+                managed ? '連線設定已套用' : '準備連線',
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: onOpen,
+                icon: const Icon(Icons.arrow_forward, size: 18),
+                iconAlignment: IconAlignment.end,
+                label: Text(managed ? '管理設定' : '設定連線'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class UsagePage extends ConsumerStatefulWidget {
