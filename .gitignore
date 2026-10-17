@@ -1,0 +1,14 @@
+/build/
+/dist/
+/data/
+**/user-data/
+/.reference/
+/.scratch/
+*.iml
+*.log
+.dart_tool/
+.flutter-plugins-dependencies
+**/build/
+**/ephemeral/
+.idea/
+.vscode/
